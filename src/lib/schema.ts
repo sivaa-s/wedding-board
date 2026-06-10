@@ -1,9 +1,13 @@
-import { sql } from "@vercel/postgres";
+import { neon } from "@neondatabase/serverless";
 
-let migrated = false;
+function getDb() {
+  const url = process.env.POSTGRES_URL || process.env.DATABASE_URL;
+  if (!url) throw new Error("No database URL found. Set POSTGRES_URL in environment variables.");
+  return neon(url);
+}
 
 export async function ensureSchema() {
-  if (migrated) return;
+  const sql = getDb();
   await sql`
     CREATE TABLE IF NOT EXISTS boards (
       id           TEXT PRIMARY KEY,
@@ -11,7 +15,7 @@ export async function ensureSchema() {
       couple_names TEXT NOT NULL DEFAULT '',
       wedding_date DATE,
       created_at   TIMESTAMPTZ DEFAULT NOW()
-    );
+    )
   `;
   await sql`
     CREATE TABLE IF NOT EXISTS tasks (
@@ -27,8 +31,9 @@ export async function ensureSchema() {
       position    INTEGER NOT NULL DEFAULT 0,
       created_at  TIMESTAMPTZ DEFAULT NOW(),
       updated_at  TIMESTAMPTZ DEFAULT NOW()
-    );
+    )
   `;
-  await sql`CREATE INDEX IF NOT EXISTS tasks_board_id_idx ON tasks(board_id);`;
-  migrated = true;
+  await sql`CREATE INDEX IF NOT EXISTS tasks_board_id_idx ON tasks(board_id)`;
 }
+
+export { getDb };

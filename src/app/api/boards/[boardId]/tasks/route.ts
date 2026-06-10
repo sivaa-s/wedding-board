@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { sql } from "@vercel/postgres";
-import { ensureSchema } from "@/lib/schema";
+import { ensureSchema, getDb } from "@/lib/schema";
 import { v4 as uuid } from "uuid";
 
 export async function GET(
@@ -8,7 +7,8 @@ export async function GET(
   { params }: { params: { boardId: string } }
 ) {
   await ensureSchema();
-  const { rows } = await sql`
+  const sql = getDb();
+  const rows = await sql`
     SELECT * FROM tasks
     WHERE board_id = ${params.boardId}
     ORDER BY position ASC, created_at ASC
@@ -25,6 +25,7 @@ export async function POST(
   { params }: { params: { boardId: string } }
 ) {
   await ensureSchema();
+  const sql = getDb();
   const body = await req.json();
   const {
     title,
@@ -40,15 +41,14 @@ export async function POST(
     return NextResponse.json({ error: "Title is required" }, { status: 400 });
   }
 
-  // Position at end of column
-  const { rows: pos } = await sql`
+  const posRows = await sql`
     SELECT COALESCE(MAX(position), -1) + 1 AS next_pos
     FROM tasks WHERE board_id = ${params.boardId} AND status = ${status}
   `;
-  const position = pos[0].next_pos;
+  const position = posRows[0].next_pos;
   const id = uuid();
 
-  const { rows } = await sql`
+  const rows = await sql`
     INSERT INTO tasks (id, board_id, title, description, category, priority, status, due_date, assignees, position)
     VALUES (
       ${id}, ${params.boardId}, ${title.trim()}, ${description},

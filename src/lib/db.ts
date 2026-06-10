@@ -1,7 +1,3 @@
-import { sql } from "@vercel/postgres";
-
-export { sql };
-
 export type Priority = "low" | "med" | "high";
 export type Status = "todo" | "inprogress" | "review" | "done";
 
