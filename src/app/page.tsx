@@ -12,6 +12,9 @@ export default function HomePage() {
   const [showForm, setShowForm] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [editingBoard, setEditingBoard] = useState<Board | null>(null);
+  const [editForm, setEditForm] = useState({ name: "", couple_names: "", wedding_date: "" });
+  const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({ name: "Wedding Board", couple_names: "", wedding_date: "" });
 
   useEffect(() => {
@@ -39,6 +42,30 @@ export default function HomePage() {
     setBoards((prev) => prev.filter((b) => b.id !== id));
     setConfirmDeleteId(null);
     setDeleting(false);
+  }
+
+  function openEdit(b: Board) {
+    setEditingBoard(b);
+    setEditForm({
+      name: b.name,
+      couple_names: b.couple_names || "",
+      wedding_date: b.wedding_date ? b.wedding_date.split("T")[0] : "",
+    });
+  }
+
+  async function saveEdit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editingBoard) return;
+    setSaving(true);
+    const res = await fetch(`/api/boards/${editingBoard.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(editForm),
+    });
+    const updated = await res.json();
+    setBoards((prev) => prev.map((b) => (b.id === updated.id ? updated : b)));
+    setEditingBoard(null);
+    setSaving(false);
   }
 
   if (loading) {
@@ -70,7 +97,6 @@ export default function HomePage() {
               {boards.map((b) => (
                 <div key={b.id}
                   className="flex items-center w-full bg-white border border-gray-200 rounded-xl px-5 py-4 hover:border-pink-300 hover:shadow-sm transition-all group">
-                  {/* Board info — clickable */}
                   <button className="flex-1 text-left" onClick={() => router.push(`/board/${b.id}`)}>
                     <p className="font-medium text-gray-800 group-hover:text-pink-600 transition-colors">{b.name}</p>
                     {b.couple_names && <p className="text-sm text-gray-400 mt-0.5">{b.couple_names}</p>}
@@ -80,16 +106,16 @@ export default function HomePage() {
                       </p>
                     )}
                   </button>
-
-                  {/* Actions */}
                   <div className="flex items-center gap-2 ml-4">
-                    <button
-                      onClick={() => router.push(`/board/${b.id}`)}
+                    <button onClick={() => router.push(`/board/${b.id}`)}
                       className="text-xs px-3 py-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 transition-colors">
                       Open
                     </button>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(b.id); }}
+                    <button onClick={(e) => { e.stopPropagation(); openEdit(b); }}
+                      className="text-xs px-3 py-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 transition-colors flex items-center gap-1">
+                      <PencilIcon /> Edit
+                    </button>
+                    <button onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(b.id); }}
                       className="text-xs px-3 py-1.5 rounded-lg border border-red-100 text-red-400 hover:bg-red-50 transition-colors flex items-center gap-1">
                       <TrashIcon /> Delete
                     </button>
@@ -102,8 +128,7 @@ export default function HomePage() {
 
         {/* Create new */}
         {!showForm ? (
-          <button
-            onClick={() => setShowForm(true)}
+          <button onClick={() => setShowForm(true)}
             className="w-full py-3 px-5 rounded-xl border-2 border-dashed border-pink-200 text-pink-500 hover:border-pink-400 hover:bg-pink-50 transition-all text-sm font-medium">
             + Create new board
           </button>
@@ -113,30 +138,18 @@ export default function HomePage() {
             <div className="space-y-3">
               <div>
                 <label className="block text-xs text-gray-500 mb-1">Board name</label>
-                <input
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-pink-400"
-                  value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  placeholder="Wedding Board"
-                />
+                <input className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-pink-400"
+                  value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Wedding Board" />
               </div>
               <div>
                 <label className="block text-xs text-gray-500 mb-1">Couple names</label>
-                <input
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-pink-400"
-                  value={form.couple_names}
-                  onChange={(e) => setForm({ ...form, couple_names: e.target.value })}
-                  placeholder="e.g. Arjun & Priya"
-                />
+                <input className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-pink-400"
+                  value={form.couple_names} onChange={(e) => setForm({ ...form, couple_names: e.target.value })} placeholder="e.g. Arjun & Priya" />
               </div>
               <div>
                 <label className="block text-xs text-gray-500 mb-1">Wedding date</label>
-                <input
-                  type="date"
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-pink-400"
-                  value={form.wedding_date}
-                  onChange={(e) => setForm({ ...form, wedding_date: e.target.value })}
-                />
+                <input type="date" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-pink-400"
+                  value={form.wedding_date} onChange={(e) => setForm({ ...form, wedding_date: e.target.value })} />
               </div>
             </div>
             <div className="flex gap-2 mt-5">
@@ -154,6 +167,59 @@ export default function HomePage() {
         )}
       </div>
 
+      {/* Edit modal */}
+      {editingBoard && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: "rgba(0,0,0,0.4)" }}
+          onClick={() => setEditingBoard(null)}>
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6"
+            onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="text-sm font-semibold text-gray-800">Edit board</h3>
+              <button onClick={() => setEditingBoard(null)}
+                className="text-gray-400 hover:text-gray-600 p-1 rounded-lg hover:bg-gray-100 transition-colors">
+                <XIcon />
+              </button>
+            </div>
+            <form onSubmit={saveEdit} className="space-y-3">
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Board name</label>
+                <input required
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-pink-400"
+                  value={editForm.name}
+                  onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Couple names</label>
+                <input
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-pink-400"
+                  value={editForm.couple_names}
+                  onChange={(e) => setEditForm({ ...editForm, couple_names: e.target.value })}
+                  placeholder="e.g. Arjun & Priya" />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Wedding date</label>
+                <input type="date"
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-pink-400"
+                  value={editForm.wedding_date}
+                  onChange={(e) => setEditForm({ ...editForm, wedding_date: e.target.value })} />
+              </div>
+              <div className="flex gap-2 pt-2">
+                <button type="button" onClick={() => setEditingBoard(null)}
+                  className="flex-1 py-2 rounded-lg border border-gray-200 text-sm text-gray-500 hover:bg-gray-50 transition-colors">
+                  Cancel
+                </button>
+                <button type="submit" disabled={saving}
+                  className="flex-1 py-2 rounded-lg text-sm font-medium text-white transition-colors"
+                  style={{ background: saving ? "#e9a0b6" : "#d4537e" }}>
+                  {saving ? "Saving…" : "Save changes"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* Delete confirmation modal */}
       {confirmDeleteId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
@@ -163,7 +229,7 @@ export default function HomePage() {
             onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center gap-3 mb-4">
               <div className="w-10 h-10 rounded-full bg-red-50 flex items-center justify-center flex-shrink-0">
-                <TrashIcon className="text-red-400" size={18} />
+                <TrashIcon size={18} />
               </div>
               <div>
                 <h3 className="text-sm font-semibold text-gray-800">Delete board?</h3>
@@ -177,14 +243,11 @@ export default function HomePage() {
               This will permanently delete the board and all its tasks. This cannot be undone.
             </p>
             <div className="flex gap-2">
-              <button
-                onClick={() => setConfirmDeleteId(null)}
+              <button onClick={() => setConfirmDeleteId(null)}
                 className="flex-1 py-2 rounded-lg border border-gray-200 text-sm text-gray-500 hover:bg-gray-50 transition-colors">
                 Cancel
               </button>
-              <button
-                onClick={() => deleteBoard(confirmDeleteId)}
-                disabled={deleting}
+              <button onClick={() => deleteBoard(confirmDeleteId)} disabled={deleting}
                 className="flex-1 py-2 rounded-lg text-sm font-medium text-white bg-red-500 hover:bg-red-600 disabled:bg-red-300 transition-colors">
                 {deleting ? "Deleting…" : "Yes, delete"}
               </button>
@@ -196,10 +259,24 @@ export default function HomePage() {
   );
 }
 
-function TrashIcon({ className = "text-red-400", size = 13 }: { className?: string; size?: number }) {
+function TrashIcon({ size = 13 }: { size?: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className={className}>
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" />
+    </svg>
+  );
+}
+function PencilIcon() {
+  return (
+    <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+    </svg>
+  );
+}
+function XIcon() {
+  return (
+    <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" d="M18 6L6 18M6 6l12 12" />
     </svg>
   );
 }
