@@ -1,9 +1,21 @@
-import { neon } from "@neondatabase/serverless";
+import postgres from "postgres";
 
-function getDb() {
-  const url = process.env.POSTGRES_URL || process.env.DATABASE_URL;
-  if (!url) throw new Error("No database URL found. Set POSTGRES_URL in environment variables.");
-  return neon(url);
+let _sql: ReturnType<typeof postgres> | null = null;
+
+export function getDb() {
+  if (_sql) return _sql;
+
+  const url =
+    process.env.POSTGRES_URL_NON_POOLING ||
+    process.env.DATABASE_URL ||
+    process.env.POSTGRES_URL;
+
+  if (!url) {
+    throw new Error("No database URL found. Set POSTGRES_URL_NON_POOLING in .env.local");
+  }
+
+  _sql = postgres(url, { ssl: "require", max: 1 });
+  return _sql;
 }
 
 export async function ensureSchema() {
@@ -35,5 +47,3 @@ export async function ensureSchema() {
   `;
   await sql`CREATE INDEX IF NOT EXISTS tasks_board_id_idx ON tasks(board_id)`;
 }
-
-export { getDb };
