@@ -32,8 +32,8 @@ export const COLUMNS: { id: Status; label: string; color: string }[] = [
 ];
 
 export const CATEGORIES = [
-  "Venue", "Catering", "Decor", "Attire",
-  "Photo/Video", "Music", "Flowers", "Transport", "Other",
+  "Haldi", "Mehandi", "Sangeeth", "Pellikoduku/Pellikuthuru",
+  "Muhurtham",
 ];
 
 export const PRIORITY_META: Record<Priority, { label: string; color: string }> = {
